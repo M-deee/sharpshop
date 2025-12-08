@@ -1,9 +1,14 @@
 """LangGraph-based AI agent for inventory management."""
+import json
+import re
+from dotenv import load_dotenv
+
+# Load environment variables FIRST
+load_dotenv()
+
 from typing import TypedDict, Annotated, Literal
 from langgraph.graph import StateGraph, END
 from openai import OpenAI
-import json
-import re
 
 from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, MODEL_NAME, ALLOWED_CATEGORIES
 from tools import create_product, query_inventory, update_product, list_products
