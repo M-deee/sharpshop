@@ -1,76 +1,18 @@
-# SharpShop — Inventory Management Agent
+# SharpShop — Inventory Management Agent 🛍️🤖
 
-A small CLI demo agent that helps sellers manage inventory (create, query, update, list) using a LangGraph-style conversational flow and an OpenRouter/OpenAI-compatible client.
+Welcome to SharpShop — a playful CLI chatbot that helps sellers manage their inventory by talking like a human. It uses a conversational flow (LangGraph-style) and an OpenRouter/OpenAI-compatible client to turn natural messages into actions (create, query, update, list).
 
-## What this project is
+Why this is fun
+- Quick prototyping of conversational inventory flows
+- Mock tools in `tools.py` so you can swap in a real DB later
+- Friendly assistant that asks one clarifying question at a time ✨
 
-This repository contains a lightweight conversational agent that:
-- Accepts seller messages via a simple CLI (`main.py`).
-- Uses an LLM (via OpenRouter/OpenAI-compatible client) to parse intent and extract structured actions.
-- Executes mock inventory operations (create_product, query_inventory, update_product, list_products) implemented in `tools.py`.
+Features
+- Conversational agent that extracts structured actions from messages
+- Mocked inventory actions: create, query, update, list
+- Simple CLI interface (`main.py`) for quick testing
 
-It is a demo/prototype — the `tools.py` functions are simple mocks you can replace with real database calls.
-
-## Example queries and expected responses
-
-1) Create product
-
-User:
-"I want to add a product: \"Nike Shoes\", price: 20000, category: fashion, quantity: 5, condition: new."
-
-Assistant (example):
-```
-{"action": "create_product", "data": {"title": "Nike Shoes", "price": 20000, "category": "fashion", "quantity": 5, "condition": "new", "description": "", "size": "", "brand": ""}}
-```
-After executing the action the assistant will confirm:
-
-Assistant (final):
-"✅ Product created: Nike Shoes (ID: PROD_0001) — price: 20000 — quantity: 5"
-
-2) Query inventory
-
-User:
-"Search for \"Nike\""
-
-Assistant (example):
-```
-{"action": "query_inventory", "data": {"query": "Nike"}}
-```
-Result (mock):
-"Found 2 items matching 'Nike':\n- Nike Shoes — 5 in stock — NGN 20000 (ID: PROD_0001)\n- Nike T-Shirt — 10 in stock — NGN 8000 (ID: PROD_0002)"
-
-3) Update product
-
-User:
-"Update product PROD_0001 price to 22000"
-
-Assistant (example):
-```
-{"action": "update_product", "data": {"product_id": "PROD_0001", "updates": {"price": 22000}}}
-```
-Result (mock):
-"✅ Product PROD_0001 updated: price set to 22000"
-
-4) List products
-
-User:
-"Show me all products"
-
-Assistant (example):
-```
-{"action":"list_products","data":{"limit":10}}
-```
-Result (mock):
-"Listing 3 products:\n1) Nike Shoes — 5 — NGN 20000\n2) Adidas Cap — 4 — NGN 3000\n3) Samsung Charger — 12 — NGN 4500"
-
-Note: The agent asks one clarifying question at a time if required fields are missing.
-
-## Local setup (step-by-step)
-
-Prerequisites
-- Python 3.8+ installed
-- Git (if cloning from a repository)
-
+Getting started — quick and safe (3 minutes)
 1. Clone the repo (or use your local copy)
 
 ```bash
@@ -93,14 +35,15 @@ If `requirements.txt` exists:
 pip install -r requirements.txt
 ```
 
-Minimal dependencies expected (add to `requirements.txt` if missing):
+Suggested minimal dependencies (add to `requirements.txt` if missing):
+
 ```
 python-dotenv
 openai
 langgraph
 ```
 
-4. Add your API key (do NOT commit this file)
+4. Add your API key (do NOT commit this file) 🔒
 
 Create a `.env` file in the project root with:
 
@@ -108,11 +51,11 @@ Create a `.env` file in the project root with:
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 ```
 
-Important: keep `.env` local only. Do not commit it.
+Important: keep `.env` local only. Do not commit it — rotate the key if it ever gets pushed.
 
-5. Ensure environment variables are loaded before `config.py` is imported
+5. Make sure `agent.py` loads env variables early
 
-`agent.py` should call `from dotenv import load_dotenv` and `load_dotenv()` before importing `config` so `OPENROUTER_API_KEY` is available at import time.
+`agent.py` should call `from dotenv import load_dotenv` and `load_dotenv()` before importing `config` so the API key is available at import time.
 
 6. Run the CLI
 
@@ -120,46 +63,79 @@ Important: keep `.env` local only. Do not commit it.
 python3 main.py
 ```
 
-Type messages at the prompt. Type `image` to simulate sending an image (if supported), and `quit` to exit.
+Type a message, for example:
+`I want to add a product: "Nike Shoes", price: 20000, category: fashion, quantity: 5, condition: new.`
 
-## Quick connectivity test
+Example interactions (chat-style)
 
-A small `test_api.py` can be used to validate the API key and the OpenRouter/OpenAI client. Example:
+---
 
-```python
-# test_api.py
-import os
-from dotenv import load_dotenv
-from openai import OpenAI
+User: I want to add a product: "Nike Shoes", price: 20000, category: fashion, quantity: 5, condition: new.
 
-load_dotenv()
-api_key = os.getenv("OPENROUTER_API_KEY")
-base_url = "https://openrouter.ai/api/v1"
+Agent (parsed action):
 
-if not api_key:
-    print("API key not found in .env")
-    exit(1)
-
-client = OpenAI(base_url=base_url, api_key=api_key)
-try:
-    r = client.chat.completions.create(model="gpt-4o", messages=[{"role":"user","content":"hello"}], temperature=0.7)
-    print("OK", r)
-except Exception as e:
-    print("API error:", e)
+```json
+{"action": "create_product", "data": {"title": "Nike Shoes", "price": 20000, "category": "fashion", "quantity": 5, "condition": "new"}}
 ```
 
-Run:
+Agent (confirmation):
 
-```bash
-python3 test_api.py
+Agent: ✅ Product created: Nike Shoes (ID: PROD_0001) — NGN 20000 — quantity: 5
+
+---
+
+User: Search for "Nike"
+
+Agent (parsed action):
+
+```json
+{"action": "query_inventory", "data": {"query": "Nike"}}
 ```
 
-## Git hygiene & security
+Agent (result):
 
-If you accidentally committed `.env`:
+Agent: 🔎 Found 2 items matching 'Nike':
+- Nike Shoes — 5 in stock — NGN 20000 (ID: PROD_0001)
+- Nike T-Shirt — 10 in stock — NGN 8000 (ID: PROD_0002)
 
-1. Stop, revoke/rotate the exposed API key immediately.
-2. Remove the file from the index (keep local copy):
+---
+
+User: Update product PROD_0001 price to 22000
+
+Agent (parsed action):
+
+```json
+{"action": "update_product", "data": {"product_id": "PROD_0001", "updates": {"price": 22000}}}
+```
+
+Agent (confirmation):
+
+Agent: ✅ Product PROD_0001 updated: price set to 22000
+
+---
+
+User: Show me all products
+
+Agent (parsed action):
+
+```json
+{"action":"list_products","data":{"limit":10}}
+```
+
+Agent (result):
+
+Agent: 📋 Listing 3 products:
+1) Nike Shoes — 5 — NGN 20000
+2) Adidas Cap — 4 — NGN 3000
+3) Samsung Charger — 12 — NGN 4500
+
+Notes
+- The bot asks one clarifying question at a time if required fields are missing (keeps UX simple).
+- `tools.py` uses mock implementations — replace these with real DB calls when ready.
+
+Security & git hygiene 🧰
+
+- Do NOT commit `.env`. If you accidentally pushed it, revoke the key immediately and remove the file from the repo index with:
 
 ```bash
 git rm --cached .env
@@ -167,33 +143,16 @@ git commit -m "Remove .env from repository"
 git push origin main
 ```
 
-3. Add `.env` to `.gitignore` (if not already present):
+- Add `.env` to `.gitignore` so it won't be added again.
 
-```
-# environment
-.env
-.venv/
-venv/
-```
+Troubleshooting
 
-4. If a secret was committed and you need to remove it from history, use BFG or `git filter-branch` (this rewrites history — coordinate with collaborators).
+- 401 errors: usually due to missing/invalid API key. Make sure `.env` exists and `load_dotenv()` runs before `config.py` imports.
+- If using OpenRouter, verify `OPENROUTER_BASE_URL` and key status in your OpenRouter dashboard.
 
-## Development notes
+Want help next? 🚀
 
-- `tools.py` currently implements mock functions. Replace with real DB calls in production.
-- The agent expects assistant responses to include a JSON block with an `action` and `data` when it should execute something. See `SYSTEM_PROMPT` in `agent.py` for the exact instruction.
+- I can add `.env` to `.gitignore` and remove it from the index for you (safe, non-destructive).
+- If you need secrets purged from commit history I can provide the commands (note: this rewrites history and requires coordinating with collaborators).
 
-## Troubleshooting
-
-- 401 errors: usually due to missing/invalid API key. Ensure `.env` is present and `load_dotenv()` runs before `config.py` imports.
-- If using OpenRouter, verify the `OPENROUTER_BASE_URL` and that your key is active.
-
-## License & attribution
-
-This is sample/demo code — adapt and extend for your needs.
-
----
-
-If you want, I can now:
-- Add this `README.md` to the repo for you, or
-- Walk through removing `.env` from the git history (full purge) and update `.gitignore` accordingly.
+Enjoy building — and let me know if you'd like the agent to speak in a different tone (formal, playful, or extra friendly)! 🎉
