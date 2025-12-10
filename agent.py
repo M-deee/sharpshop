@@ -129,19 +129,49 @@ def execute_action(state: AgentState) -> AgentState:
     new_state["image_urls"] = []
     return new_state
 
-
-def should_execute(state: AgentState) -> Literal["execute", "end"]:
-    """Determine if we should execute an action or end."""
-    if state["pending_action"] and state["collected_data"]:
-        action = state["pending_action"]
-        data = state["collected_data"]
-        
-        if action == "create_product":
-            if all(f in data for f in REQUIRED_FIELDS):
-                return "execute"
-        elif action in ["query_inventory", "update_product", "list_products"]:
-            return "execute"
-    return "end"
+def execute_action(state: AgentState) -> AgentState:
+    """Execute the pending action if data is complete."""
+    action = state["pending_action"]
+    data = state["collected_data"]
+    seller_id = state["seller_id"]
+    result_msg = ""
+    
+    if action == "create_product":
+        if state["image_urls"]:
+            data["image_urls"] = state["image_urls"]
+        data["seller_id"] = seller_id  # Add seller_id
+        result = create_product(**data)
+        if result["success"]:
+            result_msg = f"✅ Product added! Your {data.get('title', 'item')} is now listed."
+        else:
+            result_msg = f"❌ Couldn't add product: {result['error']}"
+    
+    elif action == "query_inventory":
+        result = query_inventory(data.get("search_term", ""), seller_id)
+        if result["results"]:
+            items = "\n".join([f"• {p['title']} - ₦{p['price']:,} ({p['quantity']} in stock)" for p in result["results"]])
+            result_msg = f"📦 Found {result['total']} items:\n{items}"
+        else:
+            result_msg = "No products found matching your search."
+    
+    elif action == "update_product":
+        result = update_product(data.get("product_id", ""), data.get("updates", {}), seller_id)
+        result_msg = f"✅ Product updated!" if result["success"] else f"❌ Update failed: {result['error']}"
+    
+    elif action == "list_products":
+        result = list_products(seller_id, data.get("limit", 10))
+        if result["products"]:
+            items = "\n".join([f"• {p['title']} - ₦{p['price']:,} ({p['quantity']} in stock)" for p in result["products"]])
+            result_msg = f"📦 Your products:\n{items}"
+        else:
+            result_msg = "You don't have any products listed yet."
+    
+    new_state = state.copy()
+    new_state["messages"] = state["messages"] + [{"role": "assistant", "content": result_msg}]
+    new_state["pending_action"] = None
+    new_state["collected_data"] = {}
+    new_state["image_urls"] = []
+    return new_state
 
 
 def build_graph() -> StateGraph:

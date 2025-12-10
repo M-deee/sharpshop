@@ -1,7 +1,7 @@
-"""Mock tool implementations for inventory management."""
+"""Supabase-backed tool implementations for inventory management."""
 from typing import Optional
 from config import ALLOWED_CATEGORIES, ALLOWED_CONDITIONS
-
+from database import get_supabase
 
 def validate_product_data(data: dict) -> tuple[bool, str]:
     """Validate product data before creation/update."""
@@ -22,53 +22,103 @@ def create_product(
     category: str,
     quantity: int,
     condition: str,
+    seller_id: str,
     description: Optional[str] = None,
     size: Optional[str] = None,
     brand: Optional[str] = None,
     image_urls: Optional[list[str]] = None
 ) -> dict:
-    """Create a new product listing. Returns mock success response."""
+    """Create a new product listing in Supabase."""
     data = {"title": title, "price": price, "category": category, "quantity": quantity, "condition": condition}
     valid, error = validate_product_data(data)
     if not valid:
         return {"success": False, "error": error}
     
-    product_id = f"PROD_{hash(title) % 10000:04d}"
-    print(f"[MOCK] Creating product: {title} | ₦{price:,.0f} | {category} | qty: {quantity}")
-    return {"success": True, "product_id": product_id, "message": f"Product '{title}' created successfully"}
-
-
-def query_inventory(search_term: str) -> dict:
-    """Search inventory by term. Returns mock results."""
-    print(f"[MOCK] Searching inventory for: {search_term}")
-    return {
-        "success": True,
-        "results": [
-            {"product_id": "PROD_0001", "title": f"Sample {search_term}", "price": 15000, "quantity": 5},
-            {"product_id": "PROD_0002", "title": f"Premium {search_term}", "price": 25000, "quantity": 3}
-        ],
-        "total": 2
+    supabase = get_supabase()
+    
+    product_data = {
+        "seller_id": seller_id,
+        "title": title,
+        "price": price,
+        "category": category.lower(),
+        "quantity": quantity,
+        "condition": condition.lower(),
+        "description": description,
+        "size": size,
+        "brand": brand,
+        "image_urls": image_urls or []
     }
+    
+    try:
+        result = supabase.table("products").insert(product_data).execute()
+        product = result.data[0]
+        return {
+            "success": True,
+            "product_id": product["id"],
+            "message": f"Product '{title}' created successfully"
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
-def update_product(product_id: str, updates: dict) -> dict:
-    """Update an existing product. Returns mock success."""
+def query_inventory(search_term: str, seller_id: str) -> dict:
+    """Search inventory by term."""
+    supabase = get_supabase()
+    
+    try:
+        query = supabase.table("products").select("*").eq("seller_id", seller_id)
+        
+        if search_term:
+            query = query.ilike("title", f"%{search_term}%")
+        
+        result = query.execute()
+        
+        return {
+            "success": True,
+            "results": result.data,
+            "total": len(result.data)
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "results": [], "total": 0}
+
+
+def update_product(product_id: str, updates: dict, seller_id: str) -> dict:
+    """Update an existing product."""
     valid, error = validate_product_data(updates)
     if not valid:
         return {"success": False, "error": error}
     
-    print(f"[MOCK] Updating product {product_id}: {updates}")
-    return {"success": True, "product_id": product_id, "message": "Product updated successfully"}
+    supabase = get_supabase()
+    
+    try:
+        # Check if product belongs to seller
+        check = supabase.table("products").select("id").eq("id", product_id).eq("seller_id", seller_id).execute()
+        
+        if not check.data:
+            return {"success": False, "error": "Product not found or you don't have permission"}
+        
+        result = supabase.table("products").update(updates).eq("id", product_id).execute()
+        
+        return {
+            "success": True,
+            "product_id": product_id,
+            "message": "Product updated successfully"
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
-def list_products(limit: int = 10) -> dict:
-    """List seller's products. Returns mock data."""
-    print(f"[MOCK] Listing up to {limit} products")
-    return {
-        "success": True,
-        "products": [
-            {"product_id": "PROD_0001", "title": "Nike Air Max", "price": 45000, "quantity": 2, "category": "sports"},
-            {"product_id": "PROD_0002", "title": "iPhone Case", "price": 5000, "quantity": 15, "category": "electronics"}
-        ][:limit],
-        "total": 2
-    }
+def list_products(seller_id: str, limit: int = 10) -> dict:
+    """List seller's products."""
+    supabase = get_supabase()
+    
+    try:
+        result = supabase.table("products").select("*").eq("seller_id", seller_id).limit(limit).execute()
+        
+        return {
+            "success": True,
+            "products": result.data,
+            "total": len(result.data)
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "products": [], "total": 0}
